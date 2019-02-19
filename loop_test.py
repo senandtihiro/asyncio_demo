@@ -10,6 +10,7 @@ tornado实现了web服务器（完成了socket编码，可以直接部署）
 
 import asyncio
 import time
+from functools import partial
 
 async def get_html(url):
     '''
@@ -29,13 +30,42 @@ async def get_html(url):
     print('stop get url')
 
 
+def callback(url, future):
+    '''
+    带参数的回调函数
+    :param url:
+    :param future:
+    :return:
+    '''
+    print('call back function, url:', url)
+
+
 def main():
     start_time = time.time()
     # loop可以理解为一个心脏，它不停地调度函数并执行，是单线程模式
     # 如果在协程中写了阻塞的代码，一个地方阻塞了，其他的代码都运行不了
+    # 如何获取协程的返回值呢？
     loop = asyncio.get_event_loop()
-    tasks = [get_html('www.baidu.com') for i in range(10)]
-    loop.run_until_complete(asyncio.wait(tasks))
+
+    # 这种task的用法和下面的future的用法是一样的
+    task = loop.create_task(get_html('www.baidu.com'))
+    # 还可以为任务添加回调
+    task.add_done_callback(partial(callback, 'www.baidu.com'))
+    loop.run_until_complete(task)
+    print(task.result())
+
+    # _future = asyncio.ensure_future(get_html('www.baidu.com'))
+    # loop.run_until_complete(_future)
+    # print(_future.result())
+
+    # gather与wait的区别
+    # gather是比wait更高层次的抽象，使用起来也更加灵活
+    group1 = [get_html('g.cn') for i in range(2)]
+    group2 = [get_html('g.cn') for i in range(2)]
+    group1 = asyncio.gather(*group1)
+    group2 = asyncio.gather(*group2)
+    # group1.cancel()
+    loop.run_until_complete(asyncio.gather(group1, group2))
     print(time.time() - start_time)
 
 
